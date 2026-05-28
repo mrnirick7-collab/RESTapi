@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from uuid import uuid4, UUID
-from datetime import datetime
+from datetime import datetime, date, time, timedelta
 
 app = FastAPI()
 adverts = {}
@@ -58,9 +58,13 @@ def search_ads(
     title: Optional[str] = Query(None),
     description: Optional[str] = Query(None),
     price: Optional[float] = Query(None),
-    author: Optional[str] = Query(None)
+    author: Optional[str] = Query(None),
+    created_at: Optional[date] = Query(None, description="Фильтр по дате (YYYY-MM-DD)"),
+    created_from: Optional[datetime] = Query(None, description="Начало диапазона (ISO datetime)"),
+    created_to: Optional[datetime] = Query(None, description="Конец диапазона (ISO datetime)")
 ):
     results = list(adverts.values())
+
     if title:
         results = [ad for ad in results if title.lower() in ad.title.lower()]
     if description:
@@ -69,4 +73,17 @@ def search_ads(
         results = [ad for ad in results if ad.price == price]
     if author:
         results = [ad for ad in results if author.lower() in ad.author.lower()]
+
+    # Фильтрация по created_at (по дню)
+    if created_at:
+        start = datetime.combine(created_at, time.min)
+        end = start + timedelta(days=1)
+        results = [ad for ad in results if start <= ad.created_at < end]
+
+    # Фильтрация по диапазону
+    if created_from:
+        results = [ad for ad in results if ad.created_at >= created_from]
+    if created_to:
+        results = [ad for ad in results if ad.created_at <= created_to]
+
     return results
